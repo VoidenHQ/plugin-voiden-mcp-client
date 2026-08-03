@@ -1,0 +1,23 @@
+{
+  "name": "@voiden/plugin-voiden-mcp-client",
+  "version": "0.1.0",
+  "type": "module",
+  "private": false,
+  "description": "MCP client block for .void files — connect to an external MCP server over HTTP and run one operation against it.",
+  "main": "./src/plugin.ts",
+  "scripts": {
+    "build": "node build.mjs",
+    "release": "node build.mjs && node generate-manifest.mjs"
+  },
+  "peerDependencies": {
+    "@voiden/sdk": "1.0.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@voiden/sdk": "1.0.10",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0"
+  }
+}

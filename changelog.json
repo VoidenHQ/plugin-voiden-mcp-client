@@ -1,0 +1,19 @@
+[
+  {
+    "version": "v0.1.0",
+    "date": "30/07/2026",
+    "title": "Initial Release",
+    "description": "MCP client plugin for Voiden — connect to an external MCP server over HTTP and run an operation against it.",
+    "changes": {
+      "Added": [
+        "MCP Connection block (/mcp) with a Server URL child and an Operation child",
+        "Support for list_tools, call_tool, list_resources, read_resource, list_prompts, get_prompt",
+        "Reuses the existing Auth block and assertions-table with no extra configuration",
+        "Connect to any Streamable-HTTP MCP server, including one running on localhost",
+        "Paste a Claude Desktop / Cursor / VS Code style mcpServers JSON config to fill in the block's URL and headers automatically",
+        "Query Params and Path Params block support — resolved onto the server URL, same as REST requests",
+        "Request building now goes through the same shared header/auth/cookie utilities voiden-rest-api uses, including inherited auth from .voiden-inherited.void ancestors"
+      ]
+    }
+  }
+]

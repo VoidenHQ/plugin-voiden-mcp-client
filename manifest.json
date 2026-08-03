@@ -1,0 +1,53 @@
+{
+  "id": "voiden-mcp-client",
+  "name": "Voiden MCP Client",
+  "description": "Connect to an MCP (Model Context Protocol) server over HTTP — remote or local — and run a single operation against it — list/call tools, list/read resources, list/get prompts — the same way .void files already test REST and GraphQL requests.",
+  "version": "0.1.0",
+  "voidenVersion": ">=2.1.0",
+  "author": "Voiden Team",
+  "priority": 21,
+  "dependencies": {},
+  "readme": "MCP client extension. Insert an /mcp block, point it at a Streamable-HTTP MCP server (remote or local, e.g. http://localhost:3000/mcp), pick an operation (list_tools, call_tool, list_resources, read_resource, list_prompts, get_prompt), and run it like any other request. Phase 1: HTTP transport only — no stdio/local-process servers yet.",
+  "capabilities": {
+    "blocks": {
+      "owns": [
+        "mcp-connection",
+        "mcpoperation",
+        "mcp-response"
+      ],
+      "allowExtensions": true,
+      "description": "Owns 3 block types for MCP server connection, operation, and response rendering"
+    },
+    "requestPipeline": {
+      "buildHandler": true,
+      "responseHandler": true,
+      "streamingHandler": false,
+      "description": "Registers handlers for building MCP requests and rendering MCP responses (HTTP transport)"
+    },
+    "paste": {
+      "patterns": [
+        {
+          "name": "MCP Server Config",
+          "description": "Detects a pasted {\"mcpServers\": {...}} JSON config (Claude Desktop / Cursor / VS Code / Windsurf style) and fills in the block's URL and headers from the first HTTP-transport entry"
+        }
+      ]
+    },
+    "slashCommands": {
+      "groups": [
+        {
+          "name": "mcp",
+          "commands": [
+            "Insert MCP Connection"
+          ]
+        }
+      ]
+    }
+  },
+  "features": [
+    "Connect to any Streamable-HTTP MCP server, remote or running on localhost",
+    "list_tools / call_tool / list_resources / read_resource / list_prompts / get_prompt operations",
+    "Paste a Claude Desktop / Cursor / VS Code style mcpServers JSON config to fill in URL + headers",
+    "Reuses existing Auth block for HTTP-transport authentication",
+    "Reuses existing assertions-table against MCP responses"
+  ]
+}
