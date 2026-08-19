@@ -2,7 +2,7 @@
   "id": "voiden-mcp-client",
   "name": "Voiden MCP Client",
   "description": "Connect to an MCP (Model Context Protocol) server over HTTP — remote or local — and run a single operation against it — list/call tools, list/read resources, list/get prompts — the same way .void files already test REST and GraphQL requests.",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "voidenVersion": ">=2.3.1",
   "author": "Voiden Team",
   "priority": 21,
