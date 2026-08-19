@@ -32,7 +32,7 @@ export default function createMcpClientPlugin(context: PluginContext) {
       const McpConnectionNode = createMcpConnectionNode(NodeViewWrapper, RequestBlockHeader);
       const McpUrlNode = createMcpUrlNode(NodeViewWrapper, useSendRestRequest);
       const McpOperationNode = createMcpOperationNode(NodeViewWrapper, CodeEditor);
-      const McpResponseNode = createMcpResponseNode(NodeViewWrapper);
+      const McpResponseNode = createMcpResponseNode(NodeViewWrapper, CodeEditor);
 
       context.registerVoidenExtension(McpConnectionNode);
       context.registerVoidenExtension(McpUrlNode);
@@ -40,6 +40,22 @@ export default function createMcpClientPlugin(context: PluginContext) {
       context.registerVoidenExtension(McpResponseNode);
 
       context.registerLinkableNodeTypes(['mcp-connection', 'mcpurl', 'mcpoperation', 'mcp-response']);
+
+      // Register block ownership (read from manifest) so the editor's
+      // paste/selection subsystem recognizes these as "registered Voiden
+      // blocks" — pasteOrchestrator.isRegisteredBlockType() gates the staged
+      // Cmd+A behavior (select block content first, select the whole doc on
+      // a second press) in apps/ui/src/core/editors/voiden/extensions/cmdAll.tsx.
+      // Without this, the very first Cmd+A inside an mcp-connection block
+      // jumped straight to selecting the entire document instead of scoping
+      // to the block, which is what produced the mcp-connection duplication
+      // on Cmd+A, Cmd+A, Cmd+X. Mirrors voiden-rest-api's plugin.ts registration.
+      manifest.capabilities.blocks.owns.forEach((blockType: string) => {
+        context.paste.registerBlockOwner({
+          blockType,
+          allowExtensions: manifest.capabilities.blocks.allowExtensions,
+        });
+      });
 
       const DOCS_URL = "https://docs.voiden.md/docs/core-features-section/voiden-blocks/mcp";
       (context as any).registerBlockOutlineMeta({
@@ -109,10 +125,10 @@ export default function createMcpClientPlugin(context: PluginContext) {
           {
             name: 'mcp-connection',
             label: 'MCP Connection',
-            aliases: ['mcp'],
+            aliases: ['mcp-client'],
             compareKeys: ['mcp-connection'],
             singleton: true,
-            slash: '/mcp',
+            slash: '/mcp-client',
             description: 'Connect to an MCP server and run an operation',
             action: (editor: any) => {
               if (!editor) return;
@@ -137,26 +153,29 @@ export default function createMcpClientPlugin(context: PluginContext) {
         ],
       });
 
-      // JSON import — paste a `{"mcpServers": {...}}` config (the shape used
-      // by Claude Desktop / Cursor / VS Code / Windsurf) anywhere in a .void
-      // file and fill in the block's URL (+ headers) from it, the same way
-      // voiden-rest-api's cURL pattern handler builds a request from pasted
-      // cURL. A "command"-based (stdio/local process) entry can't be applied
-      // — Phase 1 is HTTP transport only — so that case surfaces a toast
-      // instead of silently doing nothing or mangling the URL field.
+      // JSON import — paste a `{"mcpServers": {...}}` (Claude Desktop /
+      // Cursor / Windsurf / Claude Code) or `{"servers": {...}}` (VS Code)
+      // config anywhere in a .void file and fill in the block's URL (+
+      // headers) from it, the same way voiden-rest-api's cURL pattern
+      // handler builds a request from pasted cURL. Every server entry in
+      // the pasted config is handled, not just the first — one block per
+      // HTTP-transport (or mcp-remote-wrapped) entry; a genuinely local
+      // "command"-based entry can't become a block (no stdio transport
+      // exists on it) and surfaces a toast explaining why instead of
+      // silently doing nothing.
       context.paste.registerPatternHandler({
         canHandle: (text: string) => parseMcpConfigJson(text) !== null,
         handle: (text: string) => {
           const parsed = parseMcpConfigJson(text);
           if (!parsed) return false;
 
-          if ('unsupported' in parsed) {
-            showToast?.(parsed.reason, 'warning');
+          const editor = context.project.getActiveEditor('voiden');
+          if (!editor) {
+            // Still worth surfacing why a recognized config didn't do
+            // anything, even without an editor to write blocks into.
+            showToast?.('Pasted MCP config recognized, but no active file to import it into.', 'warning');
             return true;
           }
-
-          const editor = context.project.getActiveEditor('voiden');
-          if (!editor) return false;
 
           applyMcpImport(editor, parsed, showToast);
           return true;

@@ -1,5 +1,24 @@
 [
   {
+    "version": "v0.2.0",
+    "date": "19/08/2026",
+    "title": "Multi-Server Import & Richer Response Rendering",
+    "changes": {
+      "Added": [
+        "Config import now handles every server in a pasted config, not just the first — one mcp-connection block per HTTP-transport entry. Also recognizes VS Code's {\"servers\": {...}} shape alongside the existing {\"mcpServers\": {...}} one, and unwraps an mcp-remote bridge entry (npx -y mcp-remote <url> [--header ...]) into the real remote URL and headers directly, no local process involved",
+        "MCP responses now render through the shared CodeEditor component instead of a plain <pre> — same JSON syntax highlighting, search, and selection every other response view has. Text content is sniffed for JSON and pretty-printed automatically, since plenty of MCP servers hand back JSON-encoded strings as untyped \"text\" content"
+      ],
+      "Fixed": [
+        "The very first Cmd+A inside an mcp-connection block selected the whole document instead of scoping to the block, which made Cmd+A, Cmd+A, Cmd+X duplicate content instead of cutting just the block — block types are now registered with the paste/selection subsystem, matching every other plugin's blocks",
+        "An mcpurl block could pick up an auto-link mark on paste/import, causing a click meant to place the cursor to instead open the URL in the external browser — marks are now disabled on this block, matching voiden-rest-api's own URL node",
+        "\"Could not discover capabilities\" now reads as a warning, not an error, and explains that the server may just be starting up or briefly unreachable — discovery failing doesn't mean the block is broken; a tool/resource/prompt name can still be typed manually"
+      ],
+      "Changed": [
+        "Slash command renamed from /mcp to /mcp-client"
+      ]
+    }
+  },
+  {
     "version": "v0.1.0",
     "date": "30/07/2026",
     "title": "Initial Release",

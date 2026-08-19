@@ -2,12 +2,12 @@
   "id": "voiden-mcp-client",
   "name": "Voiden MCP Client",
   "description": "Connect to an MCP (Model Context Protocol) server over HTTP — remote or local — and run a single operation against it — list/call tools, list/read resources, list/get prompts — the same way .void files already test REST and GraphQL requests.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "voidenVersion": ">=2.3.1",
   "author": "Voiden Team",
   "priority": 21,
   "dependencies": {},
-  "readme": "MCP client extension. Insert an /mcp block, point it at a Streamable-HTTP MCP server (remote or local, e.g. http://localhost:3000/mcp), pick an operation (list_tools, call_tool, list_resources, read_resource, list_prompts, get_prompt), and run it like any other request. Phase 1: HTTP transport only — no stdio/local-process servers yet.",
+  "readme": "MCP client extension. Insert an /mcp-client block, point it at a Streamable-HTTP MCP server (remote or local, e.g. http://localhost:3000/mcp), pick an operation (list_tools, call_tool, list_resources, read_resource, list_prompts, get_prompt), and run it like any other request. Phase 1: HTTP transport only — no stdio/local-process servers yet.",
   "capabilities": {
     "blocks": {
       "owns": [
@@ -28,7 +28,7 @@
       "patterns": [
         {
           "name": "MCP Server Config",
-          "description": "Detects a pasted {\"mcpServers\": {...}} JSON config (Claude Desktop / Cursor / VS Code / Windsurf style) and fills in the block's URL and headers from the first HTTP-transport entry"
+          "description": "Detects a pasted {\"mcpServers\": {...}} or {\"servers\": {...}} JSON config (Claude Desktop / Cursor / VS Code / Windsurf style) — every HTTP-transport entry becomes a block, not just the first; the first updates an existing mcp-connection block in place, each additional one is appended as its own new block"
         }
       ]
     },
@@ -46,7 +46,9 @@
   "features": [
     "Connect to any Streamable-HTTP MCP server, remote or running on localhost",
     "list_tools / call_tool / list_resources / read_resource / list_prompts / get_prompt operations",
-    "Paste a Claude Desktop / Cursor / VS Code style mcpServers JSON config to fill in URL + headers",
+    "Paste a Claude Desktop / Cursor / VS Code / Windsurf style mcpServers or VS Code servers JSON config to fill in URL + headers — every server in the config becomes its own block, not just the first",
+    "mcp-remote bridge entries (npx -y mcp-remote <url>) unwrap into the real remote URL and headers automatically, no local process spawned",
+    "MCP responses render through the same shared code viewer every other block uses — JSON syntax highlighting, search, and selection, with JSON-encoded text content auto-detected and pretty-printed",
     "Reuses existing Auth block for HTTP-transport authentication",
     "Reuses existing assertions-table against MCP responses"
   ]

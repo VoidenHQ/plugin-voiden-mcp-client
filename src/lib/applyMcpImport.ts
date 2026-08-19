@@ -1,11 +1,15 @@
 /**
- * Applies a parsed McpImportConfig (see mcpConfigImport.ts) to the active
- * editor: fills in the mcp-connection block's URL (creating the block if one
- * isn't already in the doc) and, if the config carried headers, replaces the
- * headers-table sitting alongside it.
+ * Applies a parsed McpImportResult (see mcpConfigImport.ts) to the active
+ * editor. The first supported (HTTP-transport) entry updates the existing
+ * mcp-connection block's URL/headers in place if one's already in the doc
+ * (creating it if not) — unchanged from single-entry behavior. Every
+ * additional supported entry gets its own new connection+headers pair
+ * appended after it, so a config with several servers produces one block
+ * each, not just the first with the rest silently dropped.
  */
 
-import type { McpImportConfig } from './mcpConfigImport';
+import type { McpImportEntry, McpImportResult } from './mcpConfigImport';
+import { isUnsupported } from './mcpConfigImport';
 
 type ToastFn = (message: string, type?: 'info' | 'success' | 'warning' | 'error') => void;
 
@@ -37,7 +41,21 @@ function buildHeadersTableNode(headers: [string, string][]) {
   };
 }
 
-export function applyMcpImport(editor: any, config: McpImportConfig, showToast?: ToastFn) {
+function buildConnectionNode(url: string) {
+  return {
+    type: 'mcp-connection',
+    content: [
+      { type: 'mcpurl', content: url ? [{ type: 'text', text: url }] : [] },
+      { type: 'mcpoperation', attrs: { capabilityType: 'tool', args: '{\n  \n}' } },
+    ],
+  };
+}
+
+/** First supported entry only — updates the doc's existing connection
+ *  block in place if there is one (same URL-cell-replace / headers-table-
+ *  replace-or-insert-after-connection behavior this always had), otherwise
+ *  inserts a fresh connection+headers pair at the cursor. */
+function applyFirstEntry(editor: any, config: { url: string; headers: [string, string][] }) {
   const urlContent = config.url ? [{ type: 'text', text: config.url }] : [];
   const connection = findTopLevelNode(editor.state.doc, 'mcp-connection');
 
@@ -49,20 +67,7 @@ export function applyMcpImport(editor: any, config: McpImportConfig, showToast?:
       editor.chain().deleteRange({ from, to }).insertContentAt(from, { type: 'mcpurl', content: urlContent }).run();
     }
   } else {
-    editor
-      .chain()
-      .focus()
-      .insertContent([
-        {
-          type: 'mcp-connection',
-          content: [
-            { type: 'mcpurl', content: urlContent },
-            { type: 'mcpoperation', attrs: { capabilityType: 'tool', args: '{\n  \n}' } },
-          ],
-        },
-        { type: 'paragraph' },
-      ])
-      .run();
+    editor.chain().focus().insertContent([buildConnectionNode(config.url), { type: 'paragraph' }]).run();
   }
 
   if (config.headers.length > 0) {
@@ -78,13 +83,43 @@ export function applyMcpImport(editor: any, config: McpImportConfig, showToast?:
       editor.chain().insertContentAt(insertPos, tableNode).run();
     }
   }
+}
 
-  const parts = [`Imported MCP server${config.serverName ? ` "${config.serverName}"` : ''} → ${config.url}`];
-  if (config.headers.length) {
-    parts.push(`${config.headers.length} header${config.headers.length === 1 ? '' : 's'}`);
+/** Every entry after the first — always appended as a new pair at the end
+ *  of the doc, never overwriting anything, since "update in place" only
+ *  makes sense for a single existing connection block. */
+function appendEntry(editor: any, config: { url: string; headers: [string, string][] }) {
+  const content: any[] = [buildConnectionNode(config.url)];
+  if (config.headers.length > 0) content.push(buildHeadersTableNode(config.headers));
+  content.push({ type: 'paragraph' });
+  const insertPos = editor.state.doc.content.size;
+  editor.chain().insertContentAt(insertPos, content).run();
+}
+
+export function applyMcpImport(editor: any, result: McpImportResult, showToast?: ToastFn) {
+  const supported = result.entries.filter((e): e is Extract<McpImportEntry, { url: string }> => !isUnsupported(e));
+  const unsupported = result.entries.filter(isUnsupported);
+
+  supported.forEach((config, i) => {
+    if (i === 0) applyFirstEntry(editor, config);
+    else appendEntry(editor, config);
+  });
+
+  const parts: string[] = [];
+  if (supported.length > 0) {
+    const names = supported.map((c) => c.serverName).filter(Boolean);
+    parts.push(
+      supported.length === 1
+        ? `Imported MCP server${names[0] ? ` "${names[0]}"` : ''} → ${supported[0].url}`
+        : `Imported ${supported.length} MCP servers${names.length ? ` (${names.join(', ')})` : ''}`
+    );
+    const headerCount = supported.reduce((n, c) => n + c.headers.length, 0);
+    if (headerCount) parts.push(`${headerCount} header${headerCount === 1 ? '' : 's'} total`);
   }
-  if (config.extraCount) {
-    parts.push(`${config.extraCount} other server${config.extraCount === 1 ? '' : 's'} in the pasted config ignored (only one connection per block)`);
+  if (unsupported.length > 0) {
+    parts.push(unsupported.map((u) => u.reason).join(' '));
   }
-  showToast?.(parts.join(' — '), 'success');
+
+  if (parts.length === 0) return;
+  showToast?.(parts.join(' — '), supported.length > 0 ? 'success' : 'warning');
 }
