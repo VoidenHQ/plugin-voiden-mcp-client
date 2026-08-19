@@ -1,37 +1,20 @@
 [
   {
-    "version": "v0.2.0",
-    "date": "19/08/2026",
-    "title": "Multi-Server Import & Richer Response Rendering",
-    "changes": {
-      "Added": [
-        "Config import now handles every server in a pasted config, not just the first — one mcp-connection block per HTTP-transport entry. Also recognizes VS Code's {\"servers\": {...}} shape alongside the existing {\"mcpServers\": {...}} one, and unwraps an mcp-remote bridge entry (npx -y mcp-remote <url> [--header ...]) into the real remote URL and headers directly, no local process involved",
-        "MCP responses now render through the shared CodeEditor component instead of a plain <pre> — same JSON syntax highlighting, search, and selection every other response view has. Text content is sniffed for JSON and pretty-printed automatically, since plenty of MCP servers hand back JSON-encoded strings as untyped \"text\" content"
-      ],
-      "Fixed": [
-        "The very first Cmd+A inside an mcp-connection block selected the whole document instead of scoping to the block, which made Cmd+A, Cmd+A, Cmd+X duplicate content instead of cutting just the block — block types are now registered with the paste/selection subsystem, matching every other plugin's blocks",
-        "An mcpurl block could pick up an auto-link mark on paste/import, causing a click meant to place the cursor to instead open the URL in the external browser — marks are now disabled on this block, matching voiden-rest-api's own URL node",
-        "\"Could not discover capabilities\" now reads as a warning, not an error, and explains that the server may just be starting up or briefly unreachable — discovery failing doesn't mean the block is broken; a tool/resource/prompt name can still be typed manually"
-      ],
-      "Changed": [
-        "Slash command renamed from /mcp to /mcp-client"
-      ]
-    }
-  },
-  {
     "version": "v0.1.0",
     "date": "30/07/2026",
     "title": "Initial Release",
     "description": "MCP client plugin for Voiden — connect to an external MCP server over HTTP and run an operation against it.",
     "changes": {
       "Added": [
-        "MCP Connection block (/mcp) with a Server URL child and an Operation child",
+        "MCP Connection block (/mcp-client) with a Server URL child and an Operation child",
         "Support for list_tools, call_tool, list_resources, read_resource, list_prompts, get_prompt",
         "Reuses the existing Auth block and assertions-table with no extra configuration",
         "Connect to any Streamable-HTTP MCP server, including one running on localhost",
-        "Paste a Claude Desktop / Cursor / VS Code style mcpServers JSON config to fill in the block's URL and headers automatically",
+        "Paste a Claude Desktop / Cursor / VS Code / Windsurf style mcpServers config (or VS Code's servers shape) to fill in the URL and headers automatically — every server in the config becomes its own block, not just the first",
+        "An mcp-remote bridge entry (npx -y mcp-remote <url> [--header ...]) unwraps into the real remote URL and headers directly, no local process spawned",
         "Query Params and Path Params block support — resolved onto the server URL, same as REST requests",
-        "Request building now goes through the same shared header/auth/cookie utilities voiden-rest-api uses, including inherited auth from .voiden-inherited.void ancestors"
+        "Request building goes through the same shared header/auth/cookie utilities voiden-rest-api uses, including inherited auth from .voiden-inherited.void ancestors",
+        "MCP responses render through the shared CodeEditor component — JSON syntax highlighting, search, and selection, with JSON-encoded text content auto-detected and pretty-printed"
       ]
     }
   }
