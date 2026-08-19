@@ -17,7 +17,7 @@
 import React from "react";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
-import { Sparkles, RefreshCw } from "lucide-react";
+import { Sparkles, RefreshCw, TriangleAlert } from "lucide-react";
 import { discoverMcpCapabilities, type DiscoveryResult } from "../lib/discovery";
 import { computeSimpleAuthHeader } from "../lib/simpleAuthHeader";
 import { toolSchemaToTemplate, promptArgsToTemplate } from "../lib/schemaTemplate";
@@ -241,8 +241,16 @@ export const createMcpOperationNode = (NodeViewWrapper: any, CodeEditor: any) =>
           </div>
 
           {status === "error" && (
-            <div className="bg-panel border-b border-border px-3 py-1.5 text-xs text-status-error">
-              Could not discover capabilities: {error}
+            // Discovery failing isn't the same as this block being broken —
+            // the server might just be cold-starting, briefly unreachable,
+            // or not up yet, and a tool/resource/prompt name can still be
+            // typed manually below regardless (see manualTool/etc. above).
+            // Warning-toned, not error-toned, so it doesn't read as "this
+            // operation is misconfigured" when it's really "couldn't check
+            // just now — try again, or type the name directly."
+            <div className="bg-panel border-b border-border px-3 py-1.5 flex items-center gap-1.5 text-xs text-status-warning">
+              <TriangleAlert size={12} className="shrink-0" />
+              <span>Couldn't discover capabilities (server may be starting up or briefly unreachable): {error}</span>
             </div>
           )}
 

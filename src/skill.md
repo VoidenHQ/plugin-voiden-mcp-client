@@ -1,6 +1,6 @@
 ## Extension: Voiden MCP Client
 
-Provides `mcp-connection` and `mcpoperation` block types for connecting to an MCP (Model Context Protocol) server over HTTP — remote or running locally (e.g. `http://localhost:3000/mcp`) — and running one operation against it. Insert with `/mcp` slash command, or paste a `{"mcpServers": {...}}` JSON config (Claude Desktop / Cursor / VS Code / Windsurf style) to fill in the URL and headers automatically — see "JSON config import" below.
+Provides `mcp-connection` and `mcpoperation` block types for connecting to an MCP (Model Context Protocol) server over HTTP — remote or running locally (e.g. `http://localhost:3000/mcp`) — and running one operation against it. Insert with `/mcp-client` slash command, or paste a `{"mcpServers": {...}}` JSON config (Claude Desktop / Cursor / VS Code / Windsurf style) to fill in the URL and headers automatically — see "JSON config import" below.
 
 ### mcp-connection — MCP Connection Container
 

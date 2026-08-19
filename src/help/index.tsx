@@ -15,7 +15,7 @@ export const McpConnectionHelp = () => (
     <section>
       <h4 className="font-semibold mb-2 text-text">How to Use</h4>
       <ol className="list-decimal list-inside space-y-1 text-sm text-comment">
-        <li>Insert with <code className="bg-accent/10 px-1 rounded text-text">/mcp</code></li>
+        <li>Insert with <code className="bg-accent/10 px-1 rounded text-text">/mcp-client</code></li>
         <li>Set the server URL — the Operation block below automatically discovers what the server offers as soon as a URL is present</li>
         <li>Pick Tool / Resource / Prompt, then pick the specific one from the dropdown it discovered</li>
         <li>Add an <strong>Auth</strong> block in the same section if the server requires authentication</li>

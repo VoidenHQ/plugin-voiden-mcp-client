@@ -44,6 +44,14 @@ export const createMcpUrlNode = (NodeViewWrapper: any, useSendRestRequest?: any)
     name: "mcpurl",
     group: "",
     content: "inline*",
+    // No marks allowed — same guard voiden-rest-api's own UrlNode.ts uses,
+    // for the same reason: without it, typing/pasting/importing a URL here
+    // can pick up an auto-link mark (Link extension's autolink, on
+    // globally), and a global click handler opens ANY link-marked text in
+    // the external browser instead of placing the cursor to edit it. Env
+    // var ({{...}}) highlighting is unaffected — that's a view-layer
+    // decoration (environmentHighlighter.tsx), not a document mark.
+    marks: "",
     atom: false,
     isolating: false,
 
