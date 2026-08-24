@@ -2,6 +2,8 @@
 
 Provides `mcp-connection` and `mcpoperation` block types for connecting to an MCP (Model Context Protocol) server over HTTP — remote or running locally (e.g. `http://localhost:3000/mcp`) — and running one operation against it. Insert with `/mcp-client` slash command, or paste a `{"mcpServers": {...}}` JSON config (Claude Desktop / Cursor / VS Code / Windsurf style) to fill in the URL and headers automatically — see "JSON config import" below.
 
+> **Singleton per section:** `mcp-connection` is allowed at most once per section — one MCP server connection per section.
+
 ### mcp-connection — MCP Connection Container
 
 `mcp-connection` is a **container** block that wraps `mcpurl` and `mcpoperation` children. It is not wrapped inside a `request` block — it is a standalone top-level block.
