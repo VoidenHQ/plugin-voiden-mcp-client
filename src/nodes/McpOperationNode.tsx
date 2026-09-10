@@ -17,7 +17,7 @@
 import React from "react";
 import { mergeAttributes, Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
-import { Sparkles, RefreshCw, TriangleAlert } from "lucide-react";
+import { Sparkles, RefreshCw, TriangleAlert, KeyRound } from "lucide-react";
 import { discoverMcpCapabilities, type DiscoveryResult } from "../lib/discovery";
 import { computeSimpleAuthHeader } from "../lib/simpleAuthHeader";
 import { toolSchemaToTemplate, promptArgsToTemplate } from "../lib/schemaTemplate";
@@ -117,6 +117,12 @@ export const createMcpOperationNode = (NodeViewWrapper: any, CodeEditor: any) =>
     const [discovery, setDiscovery] = React.useState<DiscoveryResult | null>(null);
     const [status, setStatus] = React.useState<"idle" | "loading" | "success" | "error">("idle");
     const [error, setError] = React.useState<string | null>(null);
+    // Mirrors `error` rather than living on `discovery` — discovery gets set
+    // to null on any failure (existing behavior, kept as-is below), so a
+    // field on it wouldn't survive to render the auth-specific banner.
+    const [authRequired, setAuthRequired] = React.useState(false);
+    const [authorizeUrl, setAuthorizeUrl] = React.useState<string | undefined>(undefined);
+    const [authorizing, setAuthorizing] = React.useState(false);
     const [manualTool, setManualTool] = React.useState(false);
     const [manualResource, setManualResource] = React.useState(false);
     const [manualPrompt, setManualPrompt] = React.useState(false);
@@ -133,6 +139,8 @@ export const createMcpOperationNode = (NodeViewWrapper: any, CodeEditor: any) =>
         setDiscovery(null);
         setStatus("idle");
         setError(null);
+        setAuthRequired(false);
+        setAuthorizeUrl(undefined);
         return;
       }
       const headers = buildDiscoveryHeaders(getSectionSiblings(props.editor, props.getPos));
@@ -144,14 +152,45 @@ export const createMcpOperationNode = (NodeViewWrapper: any, CodeEditor: any) =>
         if (result.error) {
           setStatus("error");
           setError(result.error);
+          setAuthRequired(!!result.authRequired);
+          setAuthorizeUrl(result.authorizeUrl);
           setDiscovery(null);
         } else {
           setStatus("success");
           setDiscovery(result);
           setError(null);
+          setAuthRequired(false);
+          setAuthorizeUrl(undefined);
         }
       });
     }, [props.editor]);
+
+    // Drives the full OAuth handshake via the main process (see
+    // ipc/request.ts's "mcp:authorize-server" — discovery, DCR, opening the
+    // real system browser, and a loopback listener all live there/in
+    // @voiden/executors, not here). On success, re-runs discovery so the
+    // newly-saved token gets picked up immediately instead of waiting for
+    // the next edit to this block to trigger it.
+    const handleAuthorize = React.useCallback(async () => {
+      if (typeof props.getPos !== "function") return;
+      const url = getSiblingUrl(props.editor, props.getPos);
+      if (!url || authorizing) return;
+      setAuthorizing(true);
+      try {
+        const result = await (window as any).electron?.request?.authorizeMcpServer(url);
+        if (result?.success) {
+          runDiscovery(true);
+        } else {
+          setError(result?.error || "Authorization failed.");
+          setStatus("error");
+        }
+      } catch (err: any) {
+        setError(err?.message || String(err));
+        setStatus("error");
+      } finally {
+        setAuthorizing(false);
+      }
+    }, [props.editor, authorizing, runDiscovery]);
 
     React.useEffect(() => {
       runDiscovery();
@@ -228,11 +267,23 @@ export const createMcpOperationNode = (NodeViewWrapper: any, CodeEditor: any) =>
               <option value="resource">Resource</option>
               <option value="prompt">Prompt</option>
             </select>
+            {authRequired && (
+              <button
+                onClick={handleAuthorize}
+                disabled={!isEditable || authorizing}
+                title="Sign in with your real browser — Voiden completes the handshake automatically once you do, no token to copy"
+                className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-mono text-status-warning hover:text-text transition-colors opacity-90 hover:opacity-100 disabled:opacity-40"
+                style={{ cursor: "pointer", userSelect: "none" }}
+              >
+                <KeyRound size={11} className={authorizing ? "animate-pulse" : ""} />
+                <span>{authorizing ? "WAITING FOR BROWSER…" : "AUTHORIZE"}</span>
+              </button>
+            )}
             <button
               onClick={() => runDiscovery(true)}
               disabled={!isEditable}
               title="Re-discover capabilities from the server"
-              className="ml-auto flex items-center gap-1 px-1.5 py-0.5 text-xs font-mono text-comment hover:text-text transition-colors opacity-70 hover:opacity-100 disabled:opacity-30"
+              className={`flex items-center gap-1 px-1.5 py-0.5 text-xs font-mono text-comment hover:text-text transition-colors opacity-70 hover:opacity-100 disabled:opacity-30${authRequired ? "" : " ml-auto"}`}
               style={{ cursor: "pointer", userSelect: "none" }}
             >
               <RefreshCw size={11} className={status === "loading" ? "animate-spin" : ""} />
@@ -240,7 +291,18 @@ export const createMcpOperationNode = (NodeViewWrapper: any, CodeEditor: any) =>
             </button>
           </div>
 
-          {status === "error" && (
+          {status === "error" && authRequired && (
+            // Distinct from the generic warning below — this is a specific,
+            // actionable signal (401), not "might be a transient blip", so
+            // it gets its own clearer copy and doesn't get lumped in with
+            // real connectivity problems.
+            <div className="bg-panel border-b border-border px-3 py-1.5 flex items-center gap-1.5 text-xs text-status-warning">
+              <KeyRound size={12} className="shrink-0" />
+              <span>This server requires authorization — click Authorize above to sign in.</span>
+            </div>
+          )}
+
+          {status === "error" && !authRequired && (
             // Discovery failing isn't the same as this block being broken —
             // the server might just be cold-starting, briefly unreachable,
             // or not up yet, and a tool/resource/prompt name can still be

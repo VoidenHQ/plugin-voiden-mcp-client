@@ -1,5 +1,22 @@
 [
   {
+    "version": "v0.1.2",
+    "date": "08/09/2026",
+    "title": "Real OAuth Authorization, Not a Silent Failure",
+    "changes": {
+      "Added": [
+        "An mcp-operation block connecting to an OAuth-protected server now shows a clear \"This server requires authorization\" state with an AUTHORIZE button next to Refresh, instead of a generic \"couldn't discover capabilities\" warning indistinguishable from a real outage.",
+        "Clicking AUTHORIZE drives a full, real OAuth 2.1 handshake automatically — discovery, Dynamic Client Registration, opening your real system browser to sign in, and completing the token exchange via a local loopback listener. No token to copy or paste manually.",
+        "Once authorized, the resulting token is reused automatically on every later request to that same server (transparently attached, never triggering a fresh browser popup on its own) until it expires.",
+        "Voiden itself is automatically brought back to the foreground the instant the browser hands control back — success or failure — instead of leaving the app in the background while a browser tab just says \"you can close this tab now.\""
+      ],
+      "Fixed": [
+        "A 401 from the server used to be silently indistinguishable from a real connection failure, both showing the same \"server may be starting up or briefly unreachable\" message.",
+        "Discovery's own status check was discarding the actual error detail on every failure — it bailed out on a synthetic status code before ever parsing the response body that carried it."
+      ]
+    }
+  },
+  {
     "version": "v0.1.1",
     "date": "24/08/2026",
     "title": "Docs: Skill Now Documents Singleton Block Rule",
