@@ -1,5 +1,18 @@
 [
   {
+    "version": "v0.1.5",
+    "date": "21/09/2026",
+    "title": "Clearer Tool Call Results",
+    "changes": {
+      "Changed": [
+        "A Call Tool response for a request run by a served /tool now shows the API's own response, with its status, as the main content. The tool-side details (method, URL, duration, size, request and response headers) moved into a separate collapsed \"Tool details\" section instead of the whole tool result being shown as one JSON blob."
+      ],
+      "Fixed": [
+        "A failed tool call showed only \"Tool reported an error\" above the full raw result. It now shows a short \"Tool call failed\" card with the reason, a next-step hint for connection failures and timeouts, and the request that failed. If the API answered with an error body, that is still shown as the Response."
+      ]
+    }
+  },
+  {
     "version": "v0.1.4",
     "date": "21/09/2026",
     "title": "Fix: Failed Tool Calls Showed a Green OK",

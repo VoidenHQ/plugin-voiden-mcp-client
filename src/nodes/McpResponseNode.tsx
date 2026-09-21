@@ -26,6 +26,50 @@ function tryParse(raw: string): any {
   }
 }
 
+/** The result shape Voiden's own runner returns for a request it executed — what a
+ *  served /tool call comes back as, JSON-encoded inside a single text content block. */
+interface ToolRunResult {
+  success: boolean;
+  method?: string;
+  url?: string;
+  protocol?: string;
+  status?: number;
+  statusText?: string;
+  durationMs?: number;
+  size?: number;
+  body?: unknown;
+  error?: string;
+  requestHeaders?: Record<string, string>;
+  requestBody?: string;
+  responseHeaders?: Record<string, string>;
+}
+
+/** Recognizes a Voiden request result inside a call_tool response. Returns null for
+ *  anything else (arbitrary MCP servers' tools), which keeps the generic rendering. */
+function asToolRunResult(content: any[] | undefined): ToolRunResult | null {
+  if (!Array.isArray(content) || content.length !== 1 || content[0]?.type !== "text") return null;
+  const value = tryParse(content[0].text ?? "");
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  if (typeof value.success !== "boolean" || !("url" in value)) return null;
+  if (!("durationMs" in value) && !("status" in value) && !("statusText" in value)) return null;
+  return value as ToolRunResult;
+}
+
+function formatDuration(ms?: number): string {
+  if (typeof ms !== "number") return "";
+  return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
+/** One line of plain-language guidance for the failures people actually hit. The
+ *  original error is always shown as-is; this only adds a next step. */
+function failureHint(reason: string): string | null {
+  if (/fetch failed|ENOTFOUND|ECONNREFUSED|EAI_AGAIN|getaddrinfo/i.test(reason)) {
+    return "The request couldn't reach the server. Check that the URL is correct and reachable, and that any {{variables}} it uses have values.";
+  }
+  if (/timed out|ETIMEDOUT/i.test(reason)) return "The server took too long to respond.";
+  return null;
+}
+
 // Response tabs are opened read-only, and the ProseMirror editor root applies
 // user-select:none while non-editable — every text-bearing element below
 // re-asserts selection explicitly so users can still select/copy content.
@@ -218,6 +262,102 @@ export const createMcpResponseNode = (NodeViewWrapper: any, CodeEditor: any) => 
     );
   }
 
+  // A served /tool call returns Voiden's own request result, wrapped as a text block.
+  // What the caller cares about is the API's actual response, so that is shown on its
+  // own; everything the tool adds around it (request, timing, headers) goes in a
+  // separate collapsed section. A failure gets a short reason instead of the raw blob.
+  function ToolRequestResult({ run, isError }: { run: ToolRunResult; isError?: boolean }) {
+    const failed = run.success === false || !!isError;
+    const statusLabel = run.status ? `${run.status}${run.statusText ? ` ${run.statusText}` : ""}` : "";
+    const reason = run.error || run.statusText || "The request failed.";
+    const hint = failed ? failureHint(reason) : null;
+    const bodyText =
+      typeof run.body === "string" ? run.body : run.body != null ? JSON.stringify(run.body) : "";
+    const hasHeaders = (h?: Record<string, string>) => !!h && Object.keys(h).length > 0;
+    const detailRows: Array<[string, string]> = [
+      ["Method", run.method || ""],
+      ["URL", run.url || ""],
+      ["Status", statusLabel],
+      ["Duration", formatDuration(run.durationMs)],
+      ["Size", typeof run.size === "number" ? `${run.size} bytes` : ""],
+    ].filter(([, v]) => v) as Array<[string, string]>;
+
+    return (
+      <div className="space-y-2">
+        {failed && (
+          <Card tone="error">
+            <div className="flex items-center gap-2 text-status-error text-xs font-semibold">
+              <AlertCircle size={13} className="shrink-0" />
+              <span>Tool call failed</span>
+              {statusLabel && <Badge tone="error">{statusLabel}</Badge>}
+            </div>
+            <Pre className="text-status-error">{reason}</Pre>
+            {hint && <div className="text-xs text-comment">{hint}</div>}
+            {(run.method || run.url) && (
+              <div className="text-xs text-comment font-mono break-all">
+                {[run.method, run.url].filter(Boolean).join(" ")}
+                {run.durationMs != null ? ` · ${formatDuration(run.durationMs)}` : ""}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {(bodyText || !failed) && (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-comment font-medium uppercase tracking-wide">Response</span>
+              {!failed && statusLabel && <Badge tone="success">{statusLabel}</Badge>}
+            </div>
+            {bodyText ? <TextBlock text={bodyText} /> : <div className="text-xs text-comment italic">No response body.</div>}
+          </div>
+        )}
+
+        <details className="text-xs border border-border rounded">
+          <summary className="cursor-pointer select-none px-3 py-2 text-comment hover:text-text bg-panel">
+            Tool details
+          </summary>
+          <div className="p-3 space-y-2">
+            {detailRows.length > 0 && (
+              <table className="w-full table-fixed text-xs font-mono" style={SELECTABLE}>
+                <tbody>
+                  {detailRows.map(([k, v]) => (
+                    <tr key={k} className="border-b border-border last:border-0">
+                      <td className="w-24 py-1 pr-3 text-comment align-top">{k}</td>
+                      <td className="py-1 text-text align-top break-all">{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {run.requestBody && (
+              <div className="space-y-1">
+                <div className="text-comment">Request body</div>
+                <TextBlock text={run.requestBody} />
+              </div>
+            )}
+            {hasHeaders(run.requestHeaders) && (
+              <div className="space-y-1">
+                <div className="text-comment">Request headers</div>
+                <CodeBlock value={run.requestHeaders} />
+              </div>
+            )}
+            {hasHeaders(run.responseHeaders) && (
+              <div className="space-y-1">
+                <div className="text-comment">Response headers</div>
+                <CodeBlock value={run.responseHeaders} />
+              </div>
+            )}
+          </div>
+        </details>
+      </div>
+    );
+  }
+
+  function CallToolResult({ content, isError }: { content: any[]; isError?: boolean }) {
+    const run = React.useMemo(() => asToolRunResult(content), [content]);
+    return run ? <ToolRequestResult run={run} isError={isError} /> : <ContentBlocks content={content} isError={isError} />;
+  }
+
   function ResourceContents({ contents }: { contents: any[] }) {
     if (!contents?.length) return <div className="text-xs text-comment italic">No contents returned.</div>;
     return (
@@ -366,7 +506,7 @@ export const createMcpResponseNode = (NodeViewWrapper: any, CodeEditor: any) => 
                 ) : operation === "list_prompts" ? (
                   <PromptsList prompts={parsed.prompts} />
                 ) : operation === "call_tool" ? (
-                  <ContentBlocks content={parsed.content} isError={parsed.isError} />
+                  <CallToolResult content={parsed.content} isError={parsed.isError} />
                 ) : operation === "read_resource" ? (
                   <ResourceContents contents={parsed.contents} />
                 ) : operation === "get_prompt" ? (
