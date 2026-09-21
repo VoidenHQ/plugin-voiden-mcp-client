@@ -299,6 +299,9 @@ export const createMcpResponseNode = (NodeViewWrapper: any, CodeEditor: any) => 
     const parsed = React.useMemo(() => tryParse(bodyRaw), [bodyRaw]);
     const operation = parsed?.operation;
     const transportFailed = statusCode !== 200;
+    // The call itself succeeded (HTTP 200) but the tool reported failure via
+    // MCP's isError flag — must not read as a plain "OK".
+    const toolFailed = !transportFailed && operation === "call_tool" && parsed?.isError === true;
 
     const handleCopy = async () => {
       try {
@@ -322,7 +325,9 @@ export const createMcpResponseNode = (NodeViewWrapper: any, CodeEditor: any) => 
                 className="text-comment transition-transform"
                 style={{ transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)" }}
               />
-              <Badge tone={transportFailed ? "error" : "success"}>{transportFailed ? "Failed" : "OK"}</Badge>
+              <Badge tone={transportFailed || toolFailed ? "error" : "success"}>
+                {transportFailed ? "Failed" : toolFailed ? "Tool Error" : "OK"}
+              </Badge>
               <span className="text-sm font-semibold text-text">{OPERATION_LABELS[operation] || operation || "MCP Response"}</span>
             </div>
             <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
