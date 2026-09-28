@@ -22,6 +22,8 @@ jobs:
         run: node build.mjs
       - name: Build runner bundle
         run: node build-runner.mjs
+      - name: Build main-process bundle
+        run: node build-main.mjs
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -29,5 +31,6 @@ jobs:
             dist/voiden-mcp-client.js
             dist/changelog.json
             dist/voiden-mcp-client-runner.js
+            dist/voiden-mcp-client-main.cjs
             src/skill.md
             manifest.json

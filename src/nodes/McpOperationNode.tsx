@@ -52,6 +52,25 @@ function getSiblingUrl(editor: any, getPos: () => number | undefined): string {
   }
 }
 
+type AuthorizeResult = { success: boolean; error?: string };
+
+/** Runs the OAuth flow in this plugin's own main-process part. Falls back to
+ *  the app's built-in flow only while that part isn't loaded (its bundle not
+ *  downloaded yet — main-process parts load at app startup), so Authorize
+ *  keeps working through a plugin update. */
+async function authorizeViaMainProcess(serverUrl: string): Promise<AuthorizeResult> {
+  const electron = (window as any).electron;
+  try {
+    return await electron.ipc.invoke("ext:voiden-mcp-client:authorize", { serverUrl });
+  } catch (err: any) {
+    const notRegistered = String(err?.message ?? err).includes("No handler registered");
+    if (notRegistered && electron?.request?.authorizeMcpServer) {
+      return electron.request.authorizeMcpServer(serverUrl);
+    }
+    throw err;
+  }
+}
+
 /** All top-level nodes in the same request section as this block (bounded by
  *  request-separator nodes) — used to find headers-table/auth blocks the
  *  same way plugin.ts's onBuildRequest does, so discovery calls carry the
@@ -165,19 +184,18 @@ export const createMcpOperationNode = (NodeViewWrapper: any, CodeEditor: any) =>
       });
     }, [props.editor]);
 
-    // Drives the full OAuth handshake via the main process (see
-    // ipc/request.ts's "mcp:authorize-server" — discovery, DCR, opening the
-    // real system browser, and a loopback listener all live there/in
-    // @voiden/executors, not here). On success, re-runs discovery so the
-    // newly-saved token gets picked up immediately instead of waiting for
-    // the next edit to this block to trigger it.
+    // Drives the full OAuth handshake in this plugin's own main-process part
+    // (src/main-process.ts — discovery, DCR, the system browser, and a
+    // loopback listener). On success, re-runs discovery so the newly-saved
+    // token gets picked up immediately instead of waiting for the next edit
+    // to this block to trigger it.
     const handleAuthorize = React.useCallback(async () => {
       if (typeof props.getPos !== "function") return;
       const url = getSiblingUrl(props.editor, props.getPos);
       if (!url || authorizing) return;
       setAuthorizing(true);
       try {
-        const result = await (window as any).electron?.request?.authorizeMcpServer(url);
+        const result = await authorizeViaMainProcess(url);
         if (result?.success) {
           runDiscovery(true);
         } else {
