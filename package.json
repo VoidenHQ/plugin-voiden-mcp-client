@@ -1,6 +1,6 @@
 {
   "name": "@voiden/plugin-voiden-mcp-client",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "type": "module",
   "private": false,
   "description": "MCP client block for .void files — connect to an external MCP server over HTTP and run one operation against it.",

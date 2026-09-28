@@ -11,7 +11,6 @@
  * which is proven to have zero side effects on shared app state.
  */
 
-import { Buffer } from "buffer";
 
 export interface DiscoveredTool {
   name: string;
@@ -51,6 +50,20 @@ export interface DiscoveryResult {
 
 type Header = { key: string; value: string; enabled: boolean };
 
+/** The response body as text. Crosses IPC as a Uint8Array (a Node Buffer on
+ *  the main side). Decoded with TextDecoder, not Buffer: a plugin's own
+ *  release build maps `buffer` to globalThis.Buffer, which the renderer
+ *  doesn't have — Buffer.from() threw, the body was dropped, and a 401 lost
+ *  its authRequired flag ("HTTP 0: MCP request failed" instead of Authorize). */
+function bodyText(body: unknown): string | null {
+  if (typeof body === 'string') return body;
+  if (body instanceof Uint8Array) return new TextDecoder().decode(body);
+  if (body instanceof ArrayBuffer) return new TextDecoder().decode(new Uint8Array(body));
+  const data = (body as any)?.data;
+  if ((body as any)?.type === 'Buffer' && Array.isArray(data)) return new TextDecoder().decode(Uint8Array.from(data));
+  return null;
+}
+
 async function listOne(
   url: string,
   headers: Header[],
@@ -75,8 +88,9 @@ async function listOne(
     // used to silently throw away authRequired/authorizeUrl on every
     // failure, since status:0 never passes the 200-299 check below.
     let parsed: any = null;
-    if (response?.body) {
-      try { parsed = JSON.parse(Buffer.from(response.body).toString()); } catch { /* not JSON — fall through to the generic error below */ }
+    const text = bodyText(response?.body);
+    if (text) {
+      try { parsed = JSON.parse(text); } catch { /* not JSON — fall through to the generic error below */ }
     }
     if (!response || !response.status || response.status < 200 || response.status >= 300) {
       return {

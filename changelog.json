@@ -1,5 +1,16 @@
 [
   {
+    "version": "v0.1.7",
+    "date": "28/09/2026",
+    "title": "Authorize Prompt Shows Again",
+    "changes": {
+      "Fixed": [
+        "A server that needs authorization now shows the Authorize button instead of \"HTTP 0: MCP request failed\".",
+        "Basic auth on an MCP connection no longer fails before the request is sent."
+      ]
+    }
+  },
+  {
     "version": "v0.1.6",
     "date": "28/09/2026",
     "title": "Authorize Recovers After a Revoke",

@@ -11,7 +11,6 @@
  * manual-entry state, but the block itself (and Run) is unaffected.
  */
 
-import { Buffer } from "buffer";
 
 function readAuthTableConfig(authNode: any): Record<string, string> {
   const config: Record<string, string> = {};
@@ -49,7 +48,10 @@ export function computeSimpleAuthHeader(rootContent: any[] | undefined): { key: 
 
   if (authType === 'basic') {
     if (!config.username && !config.password) return null;
-    const encoded = Buffer.from(`${config.username || ''}:${config.password || ''}`).toString('base64');
+    // UTF-8 → base64 without Buffer: this runs in the renderer, where a
+    // plugin's own release build has no global Buffer to fall back on.
+    const bytes = new TextEncoder().encode(`${config.username || ''}:${config.password || ''}`);
+    const encoded = btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''));
     return { key: 'Authorization', value: `Basic ${encoded}` };
   }
 
